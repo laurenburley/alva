@@ -85,6 +85,9 @@ export class Analyzer extends StyleguideAnalyzer {
 				const pattern = new Pattern(id, name, patternInfo.implementationPath, exportInfo.name);
 				pattern.setIconPath(patternInfo.iconPath);
 
+				const slots: string[] = SlotAnalyzer.analyzeSlots(propType.type, program);
+				console.log(slots);
+
 				const properties: Property[] = PropertyAnalyzer.analyze(
 					propType.type,
 					propType.typeChecker
