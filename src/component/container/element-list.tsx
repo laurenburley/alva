@@ -97,7 +97,9 @@ export class ElementList extends React.Component {
 					}
 				}
 
-				store.execute(ElementLocationCommand.addChild(newParent, draggedElement, newIndex));
+				store.execute(
+					ElementLocationCommand.addChild(newParent, draggedElement, undefined, newIndex)
+				);
 				store.setSelectedElement(draggedElement);
 			},
 			handleDragDrop: (e: React.DragEvent<HTMLElement>) => {

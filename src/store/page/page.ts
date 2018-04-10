@@ -118,13 +118,13 @@ export class Page {
 	 */
 	public setRoot(root?: PageElement | undefined): void {
 		if (this.root) {
-			this.root.setParentInternal(undefined, undefined, undefined);
+			this.root.setParentInternal(undefined, undefined, undefined, undefined);
 		}
 
 		this.root = root;
 
 		if (root) {
-			root.setParentInternal(undefined, undefined, this);
+			root.setParentInternal(undefined, undefined, undefined, this);
 		}
 	}
 

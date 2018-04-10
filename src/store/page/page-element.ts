@@ -14,6 +14,7 @@ import * as Uuid from 'uuid';
 export interface PageElementProperties {
 	id?: string;
 	parent?: PageElement;
+	parentSlotId?: string;
 	pattern?: Pattern;
 	setDefaults?: boolean;
 }
@@ -25,9 +26,10 @@ export interface PageElementProperties {
  */
 export class PageElement {
 	/**
-	 * The child page elements of this element.
+	 * The content page elements of this element.
+	 * Key = Slot ID, Value = Slot contents.
 	 */
-	@MobX.observable private children: PageElement[] = [];
+	@MobX.observable private contents: Map<string, PageElement[]> = new Map();
 
 	/**
 	 * The technical (internal) ID of the page element.
@@ -48,6 +50,12 @@ export class PageElement {
 	 * The parent page element if this is not the root element.
 	 */
 	private parent: PageElement | undefined;
+
+	/**
+	 * The id of the slot this element is attached to.
+	 * Undefined means default slot. (for react it's the `children` property)
+	 */
+	private parentSlotId: string | undefined;
 
 	/**
 	 * The pattern this page element reflects. Usually set, may only the undefined if the pattern
@@ -81,6 +89,7 @@ export class PageElement {
 		this.id = properties.id ? properties.id : Uuid.v4();
 		this.pattern = properties.pattern;
 		this.patternId = this.pattern ? this.pattern.getId() : undefined;
+		this.parentSlotId = properties.parentSlotId;
 
 		if (this.name === undefined && this.pattern) {
 			this.name = this.pattern.getName();
@@ -144,10 +153,15 @@ export class PageElement {
 			});
 		}
 
-		if (json.children) {
-			element.children = (json.children as JsonArray).map(
-				(childJson: JsonObject) => element.createChildElement(childJson) as PageElement
-			);
+		if (json.content) {
+			const slots = json.content as JsonObject;
+
+			Object.keys(slots).forEach(slotId => {
+				const childElements = (slots[slotId] as JsonArray).map(
+					childElement => element.createChildElement(childElement, slotId) as PageElement
+				);
+				element.contents.set(slotId, childElements);
+			});
 		}
 
 		return element;
@@ -157,25 +171,31 @@ export class PageElement {
 	 * Adds a child element to is element (and removes it from any other parent).
 	 * @param child The child element to add.
 	 * @param index The 0-based new position within the children.
+	 * @param slotId The slot to attach the element to. When undefined the default slot is used.
 	 * Leaving out the position adds it at the end of the list.
 	 */
-	public addChild(child: PageElement, index?: number): void {
-		child.setParent(this, index);
+	public addChild(child: PageElement, slotId?: string, index?: number): void {
+		child.setParent(this, slotId, index);
 	}
 
 	/**
 	 * Returns a deep clone of this page element (i.e. cloning all values and children as well).
-	 * The new clone does not have any parent.
+	 * The new clone does not have a parent nor slotId.
 	 * @return The new clone.
 	 */
 	public clone(): PageElement {
 		const clone = new PageElement({ pattern: this.pattern });
-		this.children.forEach(child => {
-			clone.addChild(child.clone());
+
+		this.contents.forEach(children => {
+			children.forEach(child => {
+				clone.addChild(child.clone());
+			});
 		});
+
 		this.propertyValues.forEach((value: PropertyValue, id: string) => {
 			clone.setPropertyValue(id, value);
 		});
+
 		return clone;
 	}
 
@@ -184,7 +204,7 @@ export class PageElement {
 	 * @param json The JSON to read from.
 	 * @return The new child element.
 	 */
-	protected createChildElement(json: JsonValue): PageElement | PropertyValue {
+	protected createChildElement(json: JsonValue, slotId: string): PageElement | PropertyValue {
 		if (json && (json as JsonObject)['_type'] === 'pattern') {
 			return PageElement.fromJsonObject(json as JsonObject, this);
 		} else {
@@ -194,7 +214,8 @@ export class PageElement {
 			const element: PageElement = new PageElement({
 				pattern: styleguide.getPattern(Pattern.SYNTHETIC_TEXT_ID),
 				setDefaults: false,
-				parent: this
+				parent: this,
+				parentSlotId: slotId
 			});
 			element.setPropertyValue(StringProperty.SYNTHETIC_TEXT_ID, String(json));
 			return element;
@@ -215,11 +236,18 @@ export class PageElement {
 	}
 
 	/**
-	 * Returns the child page elements of this element.
-	 * @return The child page elements of this element.
+	 * Returns the child page elements of this element for a given slot.
+	 * @param slotId The id of the slot to get the children for. Returns the children of the default slot if undefined.
+	 * @return The child page elements of this element and the given slot.
 	 */
-	public getChildren(): PageElement[] {
-		return this.children;
+	public getChildren(slotId?: string): PageElement[] {
+		const internalSlotId = slotId || 'default';
+
+		if (!this.contents.has(internalSlotId)) {
+			this.contents.set(internalSlotId, []);
+		}
+
+		return this.contents.get(internalSlotId) as PageElement[];
 	}
 
 	/**
@@ -231,14 +259,14 @@ export class PageElement {
 	}
 
 	/**
-	 * Returns the 0-based position of this element within its parent.
+	 * Returns the 0-based position of this element within its parent slot.
 	 * @return The 0-based position of this element.
 	 */
 	public getIndex(): number {
 		if (!this.parent) {
 			throw new Error('This element has no parent');
 		}
-		return this.parent.children.indexOf(this);
+		return this.parent.getChildren(this.parentSlotId).indexOf(this);
 	}
 
 	/**
@@ -364,7 +392,7 @@ export class PageElement {
 	 * @param index The new 0-based position within the parent's children.
 	 */
 	public setIndex(index: number): void {
-		this.setParent(this.parent, index);
+		this.setParent(this.parent, this.parentSlotId, index);
 	}
 
 	/**
@@ -380,10 +408,11 @@ export class PageElement {
 	 * If no parent is provided, only removes it from its parent.
 	 * @param parent The (optional) new parent for this element.
 	 * @param index The 0-based new position within the children of the new parent.
+	 * @param slotId The slot to attach the element to. When undefined the default slot is used.
 	 * Leaving out the position adds it at the end of the list.
 	 */
-	public setParent(parent?: PageElement, index?: number): void {
-		this.setParentInternal(parent, index, parent ? parent.getPage() : undefined);
+	public setParent(parent?: PageElement, slotId?: string, index?: number): void {
+		this.setParentInternal(parent, slotId, index, parent ? parent.getPage() : undefined);
 	}
 
 	/**
@@ -392,15 +421,21 @@ export class PageElement {
 	 * @param parent The (optional) new parent for this element.
 	 * @param index The 0-based new position within the children of the new parent.
 	 * Leaving out the position adds it at the end of the list.
+	 * @param slotId The slot to attach the element to. When undefined the default slot is used.
 	 * @param page The page of this element.
 	 */
-	public setParentInternal(parent?: PageElement, index?: number, page?: Page): void {
-		if (index !== undefined && this.parent === parent && this.children.indexOf(this) === index) {
+	public setParentInternal(
+		parent?: PageElement,
+		slotId?: string,
+		index?: number,
+		page?: Page
+	): void {
+		if (index !== undefined && this.parent === parent && this.getIndex() === index) {
 			return;
 		}
 
 		if (this.parent) {
-			(this.parent.children as MobX.IObservableArray<PageElement>).remove(this);
+			(this.parent.getChildren(slotId) as MobX.IObservableArray<PageElement>).remove(this);
 		}
 
 		if (this.page) {
@@ -411,10 +446,10 @@ export class PageElement {
 		this.updatePageInDescendants(page);
 
 		if (parent) {
-			if (index === undefined || index >= parent.children.length) {
-				parent.children.push(this);
+			if (index === undefined || index >= parent.getChildren(slotId).length) {
+				parent.getChildren(slotId).push(this);
 			} else {
-				parent.children.splice(index < 0 ? 0 : index, 0, this);
+				parent.getChildren(slotId).splice(index < 0 ? 0 : index, 0, this);
 			}
 		}
 
@@ -465,13 +500,16 @@ export class PageElement {
 			pattern: this.patternId
 		};
 
-		json.children = this.children.map(
-			(element: PageElement) =>
-				// tslint:disable-next-line:no-any
-				element.toJsonObject ? element.toJsonObject() : (element as any)
-		);
-		json.properties = {};
+		json.content = {};
+		this.contents.forEach((slotContents, slotId) => {
+			(json.content as JsonObject)[slotId] = slotContents.map(
+				(element: PageElement) =>
+					// tslint:disable-next-line:no-any
+					element.toJsonObject ? element.toJsonObject() : (element as any)
+			);
+		});
 
+		json.properties = {};
 		this.propertyValues.forEach((value: PropertyValue, key: string) => {
 			(json.properties as JsonObject)[key] =
 				value !== null && value !== undefined ? this.propertyToJsonValue(value) : value;
@@ -486,6 +524,8 @@ export class PageElement {
 	 */
 	private updatePageInDescendants(page?: Page): void {
 		this.page = page;
-		this.children.forEach(child => child.updatePageInDescendants(page));
+		this.contents.forEach(slotContents => {
+			slotContents.forEach(child => child.updatePageInDescendants(page));
+		});
 	}
 }
