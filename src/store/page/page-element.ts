@@ -99,7 +99,7 @@ export class PageElement {
 			});
 		}
 
-		this.setParent(properties.parent);
+		this.setParent(properties.parent, properties.parentSlotId);
 	}
 
 	/**
@@ -156,7 +156,7 @@ export class PageElement {
 			const slots = json.content as JsonObject;
 
 			Object.keys(slots).forEach(slotId => {
-				const childElements = (slots[slotId] as JsonArray).map(
+				(slots[slotId] as JsonArray).map(
 					childElement =>
 						PageElement.fromJsonObject(
 							childElement as JsonObject,
@@ -164,7 +164,6 @@ export class PageElement {
 							slotId
 						) as PageElement
 				);
-				element.contents.set(slotId, childElements);
 			});
 		}
 
@@ -214,14 +213,6 @@ export class PageElement {
 		} else {
 			return json as PropertyValue;
 		}
-	}
-
-	/**
-	 * Returns the child page elements of this element for all slots.
-	 * @return The child page elements of this element for all slots.
-	 */
-	public getAllChildren(): Map<string, PageElement[]> {
-		return this.contents;
 	}
 
 	/**

@@ -70,12 +70,18 @@ class Preview extends React.Component<PreviewProps> {
 
 	// tslint:disable-next-line:no-any
 	protected collectChildren(componentProps: any, pageElement: PageElement): void {
-		pageElement.getAllChildren().forEach((children, slotId) => {
-			const reactPropertyName = slotId === 'default' ? 'children' : slotId;
-			componentProps[reactPropertyName] = children.map((child, index) =>
-				this.createComponent(child)
-			);
-		});
+		const pattern = pageElement.getPattern();
+
+		if (pattern) {
+			pattern.getSlots().forEach(slot => {
+				const slotId = slot.getId();
+				const reactPropertyName = slotId === 'default' ? 'children' : slotId;
+				const slotContents = pageElement.getChildren(slotId);
+				componentProps[reactPropertyName] = slotContents.map((child, index) =>
+					this.createComponent(child)
+				);
+			});
+		}
 	}
 
 	// tslint:disable-next-line:no-any
