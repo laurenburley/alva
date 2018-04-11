@@ -8,6 +8,7 @@ import { Page } from '../../store/page/page';
 import { PageElement } from '../../store/page/page-element';
 import { Pattern } from '../../store/styleguide/pattern';
 import * as React from 'react';
+import { Slot } from '../../store/styleguide/slot';
 import { Store } from '../../store/store';
 
 @observer
@@ -34,41 +35,18 @@ export class ElementList extends React.Component {
 			};
 		}
 
-		let defaultSlot: ListItemProps = {
-			value: ''
-		};
+		let defaultSlotItems: ListItemProps[] | undefined = [];
+		const slots: ListItemProps[] = [];
 
-		const slots: ListItemProps[] = pattern.getSlots().map(slot => {
-			const children: PageElement[] = element.getChildren(slot.getId()) || [];
-			const childItems: ListItemProps[] = [];
-
-			children.forEach((value: PageElement, index: number) => {
-				childItems.push(
-					this.createItemFromElement(
-						children.length > 1 ? `Child ${index + 1}` : 'Child',
-						value,
-						selectedElement
-					)
-				);
-			});
-
-			const slotListItem: ListItemProps = {
-				value: `🔘 ${slot.getName()}`,
-				draggable: false,
-				children: childItems
-			};
+		pattern.getSlots().forEach(slot => {
+			const listItem = this.createItemFromSlot(slot, element, selectedElement);
 
 			if (slot.getId() === 'default') {
-				defaultSlot = slotListItem;
+				defaultSlotItems = listItem.children;
+			} else {
+				slots.push(listItem);
 			}
-
-			return slotListItem;
 		});
-
-		slots.splice(slots.indexOf(defaultSlot), 1);
-		if (defaultSlot.children) {
-			slots.push(...defaultSlot.children);
-		}
 
 		const updatePageElement: React.MouseEventHandler<HTMLElement> = event => {
 			event.stopPropagation();
@@ -153,9 +131,38 @@ export class ElementList extends React.Component {
 				store.execute(ElementLocationCommand.addChild(element, draggedElement));
 				store.setSelectedElement(draggedElement);
 			},
-			children: slots,
+			children: [...slots, ...defaultSlotItems],
 			active: element === selectedElement
 		};
+	}
+
+	public createItemFromSlot(
+		slot: Slot,
+		element: PageElement,
+		selectedElement?: PageElement
+	): ListItemProps {
+		const slotId = slot.getId();
+		const children: PageElement[] = element.getChildren(slotId);
+		const childItems: ListItemProps[] = [];
+
+		children.forEach((value: PageElement, index: number) => {
+			childItems.push(
+				this.createItemFromElement(
+					children.length > 1 ? `Child ${index + 1}` : 'Child',
+					value,
+					selectedElement
+				)
+			);
+		});
+
+		const slotListItem: ListItemProps = {
+			value: `🔘 ${slot.getName()}`,
+			draggable: false,
+			children: childItems,
+			label: slotId
+		};
+
+		return slotListItem;
 	}
 
 	public render(): JSX.Element | null {
