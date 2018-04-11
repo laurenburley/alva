@@ -35,7 +35,16 @@ export class ElementList extends React.Component {
 			};
 		}
 
-		const items: ListItemProps[] = [];
+		const slots: ListItemProps[] = pattern.getSlots().map(slot => {
+			const slotListItem: ListItemProps = {
+				value: slot.getName(),
+				label: 'yolo'
+			};
+
+			return slotListItem;
+		});
+
+		const items: ListItemProps[] = [...slots];
 		const children: PageElement[] = element.getChildren() || [];
 		children.forEach((value: PageElement, index: number) => {
 			items.push(
