@@ -7,7 +7,6 @@ import { observer } from 'mobx-react';
 import { Page } from '../../store/page/page';
 import { PageElement } from '../../store/page/page-element';
 import { Pattern } from '../../store/styleguide/pattern';
-import { PropertyValue } from '../../store/page/property-value';
 import * as React from 'react';
 import { Store } from '../../store/store';
 
@@ -35,26 +34,41 @@ export class ElementList extends React.Component {
 			};
 		}
 
+		let defaultSlot: ListItemProps = {
+			value: ''
+		};
+
 		const slots: ListItemProps[] = pattern.getSlots().map(slot => {
+			const children: PageElement[] = element.getChildren(slot.getId()) || [];
+			const childItems: ListItemProps[] = [];
+
+			children.forEach((value: PageElement, index: number) => {
+				childItems.push(
+					this.createItemFromElement(
+						children.length > 1 ? `Child ${index + 1}` : 'Child',
+						value,
+						selectedElement
+					)
+				);
+			});
+
 			const slotListItem: ListItemProps = {
-				value: slot.getName(),
-				label: 'yolo'
+				value: `🔘 ${slot.getName()}`,
+				draggable: false,
+				children: childItems
 			};
+
+			if (slot.getId() === 'default') {
+				defaultSlot = slotListItem;
+			}
 
 			return slotListItem;
 		});
 
-		const items: ListItemProps[] = [...slots];
-		const children: PageElement[] = element.getChildren() || [];
-		children.forEach((value: PageElement, index: number) => {
-			items.push(
-				this.createItemFromProperty(
-					children.length > 1 ? `Child ${index + 1}` : 'Child',
-					value,
-					selectedElement
-				)
-			);
-		});
+		slots.splice(slots.indexOf(defaultSlot), 1);
+		if (defaultSlot.children) {
+			slots.push(...defaultSlot.children);
+		}
 
 		const updatePageElement: React.MouseEventHandler<HTMLElement> = event => {
 			event.stopPropagation();
@@ -139,38 +153,9 @@ export class ElementList extends React.Component {
 				store.execute(ElementLocationCommand.addChild(element, draggedElement));
 				store.setSelectedElement(draggedElement);
 			},
-			children: items,
+			children: slots,
 			active: element === selectedElement
 		};
-	}
-
-	public createItemFromProperty(
-		key: string,
-		value: PropertyValue,
-		selectedElement?: PageElement
-	): ListItemProps {
-		if (value instanceof Array) {
-			const items: ListItemProps[] = [];
-			(value as (string | number)[]).forEach((child, index: number) => {
-				items.push(this.createItemFromProperty(String(index + 1), child));
-			});
-			return { value: key, children: items };
-		}
-
-		if (value === undefined || value === null || typeof value !== 'object') {
-			return { label: key, value: String(value) };
-		}
-
-		if (value instanceof PageElement) {
-			return this.createItemFromElement(key, value, selectedElement);
-		} else {
-			const items: ListItemProps[] = [];
-			Object.keys(value).forEach((childKey: string) => {
-				// tslint:disable-next-line:no-any
-				items.push(this.createItemFromProperty(childKey, (value as any)[childKey]));
-			});
-			return { value: key, children: items };
-		}
 	}
 
 	public render(): JSX.Element | null {

@@ -7,8 +7,6 @@ import { Pattern } from '../styleguide/pattern';
 import { Property } from '../styleguide/property/property';
 import { PropertyValue } from './property-value';
 import { Store } from '../store';
-import { StringProperty } from '../styleguide/property/string-property';
-import { Styleguide } from '../styleguide/styleguide';
 import * as Uuid from 'uuid';
 
 export interface PageElementProperties {
@@ -112,6 +110,7 @@ export class PageElement {
 	public static fromJsonObject(
 		json: JsonObject,
 		parent?: PageElement,
+		parentSlotId?: string,
 		page?: Page
 	): PageElement | undefined {
 		if (!json) {
@@ -139,7 +138,7 @@ export class PageElement {
 			console.warn(`Unknown pattern '${patternId}', please check styleguide`);
 		}
 
-		const element = new PageElement({ id: json.uuid as string, pattern, parent });
+		const element = new PageElement({ id: json.uuid as string, pattern, parent, parentSlotId });
 		element.patternId = patternId;
 
 		if (json.name !== undefined) {
@@ -158,7 +157,12 @@ export class PageElement {
 
 			Object.keys(slots).forEach(slotId => {
 				const childElements = (slots[slotId] as JsonArray).map(
-					childElement => element.createChildElement(childElement, slotId) as PageElement
+					childElement =>
+						PageElement.fromJsonObject(
+							childElement as JsonObject,
+							element,
+							slotId
+						) as PageElement
 				);
 				element.contents.set(slotId, childElements);
 			});
@@ -200,29 +204,6 @@ export class PageElement {
 	}
 
 	/**
-	 * Creates a child element (pattern or text) for a given serialization JSON.
-	 * @param json The JSON to read from.
-	 * @return The new child element.
-	 */
-	protected createChildElement(json: JsonValue, slotId: string): PageElement | PropertyValue {
-		if (json && (json as JsonObject)['_type'] === 'pattern') {
-			return PageElement.fromJsonObject(json as JsonObject, this);
-		} else {
-			const store: Store = Store.getInstance();
-			const styleguide = store.getStyleguide() as Styleguide;
-
-			const element: PageElement = new PageElement({
-				pattern: styleguide.getPattern(Pattern.SYNTHETIC_TEXT_ID),
-				setDefaults: false,
-				parent: this,
-				parentSlotId: slotId
-			});
-			element.setPropertyValue(StringProperty.SYNTHETIC_TEXT_ID, String(json));
-			return element;
-		}
-	}
-
-	/**
 	 * Creates a property value or element for a given serialization JSON.
 	 * @param json The JSON to read from.
 	 * @return The new property value or element.
@@ -236,10 +217,19 @@ export class PageElement {
 	}
 
 	/**
+	 * Returns the child page elements of this element for all slots.
+	 * @return The child page elements of this element for all slots.
+	 */
+	public getAllChildren(): Map<string, PageElement[]> {
+		return this.contents;
+	}
+
+	/**
 	 * Returns the child page elements of this element for a given slot.
 	 * @param slotId The id of the slot to get the children for. Returns the children of the default slot if undefined.
 	 * @return The child page elements of this element and the given slot.
 	 */
+	@MobX.action
 	public getChildren(slotId?: string): PageElement[] {
 		const internalSlotId = slotId || 'default';
 

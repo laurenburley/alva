@@ -66,7 +66,7 @@ export class Pattern {
 	/**
 	 * The slots this pattern supports
 	 */
-	protected slots: Map<string, Slot> = new Map();
+	protected slots: Map<string, Slot> = new Map([['default', new Slot('default')]]);
 
 	/**
 	 * Creates a new pattern.
