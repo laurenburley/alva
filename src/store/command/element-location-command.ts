@@ -61,9 +61,11 @@ export class ElementLocationCommand extends ElementCommand {
 		super(element);
 
 		this.parent = parent;
+		this.slotId = slotId;
 		this.index = index;
 
 		this.previousParent = element.getParent();
+		this.previousSlotId = element.getParentSlotId();
 		this.previousIndex = this.previousParent ? element.getIndex() : undefined;
 
 		// Memorize the page IDs of the new parent, if the element has no parent.
