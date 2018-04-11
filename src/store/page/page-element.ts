@@ -294,6 +294,14 @@ export class PageElement {
 	}
 
 	/**
+	 * Returns the id of the slot this element is attached to.
+	 * @return The slotId of the parent element.
+	 */
+	public getParentSlotId(): string | undefined {
+		return this.parentSlotId;
+	}
+
+	/**
 	 * Returns the pattern this page element reflects.
 	 * Usually set, may only the undefined if the pattern has disappeared
 	 * or got invalid in the mean-time.
