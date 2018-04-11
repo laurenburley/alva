@@ -10,6 +10,8 @@ import { PropertyAnalyzer } from './property-analyzer';
 import * as React from 'react';
 import * as ReactDom from 'react-dom';
 import { ReactUtils } from '../typescript/react-utils';
+import { Slot } from '../../../store/styleguide/slot';
+import { SlotAnalyzer } from './slot-analzyer';
 import { Styleguide } from '../../../store/styleguide/styleguide';
 import { StyleguideAnalyzer } from '../styleguide-analyzer';
 import { Type } from '../typescript/type';
@@ -85,13 +87,17 @@ export class Analyzer extends StyleguideAnalyzer {
 				const pattern = new Pattern(id, name, patternInfo.implementationPath, exportInfo.name);
 				pattern.setIconPath(patternInfo.iconPath);
 
-				const slots: string[] = SlotAnalyzer.analyzeSlots(propType.type, program);
-				console.log(slots);
+				const slots: Slot[] = SlotAnalyzer.analyzeSlots(propType.type, program);
+
+				for (const slot of slots) {
+					pattern.addSlot(slot);
+				}
 
 				const properties: Property[] = PropertyAnalyzer.analyze(
 					propType.type,
 					propType.typeChecker
 				);
+
 				for (const property of properties) {
 					pattern.addProperty(property);
 				}

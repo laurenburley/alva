@@ -1,12 +1,13 @@
 // tslint:disable:no-bitwise
 
 import { ReactUtils } from '../typescript/react-utils';
+import { Slot } from '../../../store/styleguide/slot';
 import * as Ts from 'typescript';
 import { TypescriptUtils } from '../typescript/typescript-utils';
 
 export class SlotAnalyzer {
-	public static analyzeSlots(type: Ts.Type, program: Ts.Program): string[] {
-		const slots: string[] = [];
+	public static analyzeSlots(type: Ts.Type, program: Ts.Program): Slot[] {
+		const slots: Slot[] = [];
 		const members = type.getApparentProperties();
 		const typechecker = program.getTypeChecker();
 
@@ -26,7 +27,8 @@ export class SlotAnalyzer {
 			}
 
 			if (ReactUtils.isSlotType(program, memberType)) {
-				slots.push(memberSymbol.name);
+				const slot = new Slot(memberSymbol.name);
+				slots.push(slot);
 			}
 		});
 

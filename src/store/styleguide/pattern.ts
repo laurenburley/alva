@@ -1,6 +1,7 @@
 import { PatternFolder } from './folder';
 import { ObjectProperty } from './property/object-property';
 import { Property } from './property/property';
+import { Slot } from './slot';
 import { Store } from '../store';
 
 /**
@@ -65,7 +66,7 @@ export class Pattern {
 	/**
 	 * The slots this pattern supports
 	 */
-	protected slots: string[] = [];
+	protected slots: Map<string, Slot> = new Map();
 
 	/**
 	 * Creates a new pattern.
@@ -96,8 +97,8 @@ export class Pattern {
 	 * Adds a slot to this pattern. This method is called by the analyzer only.
 	 * @param name The slot to add.
 	 */
-	public addSlot(name: string): void {
-		this.slots.push(name);
+	public addSlot(slot: Slot): void {
+		this.slots.set(slot.getId(), slot);
 	}
 
 	/**
@@ -192,8 +193,8 @@ export class Pattern {
 	 * Returns the slots this pattern supports.
 	 * @return The slots this pattern supports.
 	 */
-	public getSlots(): string[] {
-		return this.slots;
+	public getSlots(): Slot[] {
+		return Array.from(this.slots.values());
 	}
 
 	/**
